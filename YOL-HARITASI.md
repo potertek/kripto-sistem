@@ -22,8 +22,10 @@ yok, Midas spot, 3 ay tecrübe) uyarlanmış tek sistem.
 - `nobet.py` — iki kademeli. Kademe 1 saf Python (model yok, maliyet yok);
   Kademe 2 yalnızca eşik aşılınca Claude'u çağırır
 - `esikler.yml` — coin bazında eşik (BTC %5, ETH %6, SOL/XRP %8),
-  USD + TL gösterim, çalışma saatleri, spam sessizliği
-- `.github/workflows/nobet.yml` — 2 saatte bir
+  USD + TL gösterim, gün bazında çalışma pencereleri, yön filtresi,
+  yorum modeli (claude-sonnet-4-6 / effort medium), spam sessizliği
+- `.github/workflows/nobet.yml` — **hafta içi 18:00-21:00 saat başı,
+  hafta sonu 09:00-21:00 iki saatte bir** (TSİ)
 - `state/nobet.json` — 12 saatlik spam önleme hafızası
 
 ### 3 · Dayanıklılık
@@ -94,7 +96,7 @@ yazmaktansa boş bırakmak daha dürüst.
 | ISOLATED marj, kill switch, martingale yasağı | Aynı sebep |
 | Ekran görüntüsü okuma | Dubai videosunda model ekran görüntüsünü yanlış okuyup olmayan bir kural ihlali uydurdu. Bilerek dışarıda |
 | Tatil Trade Deneyi | Tamamı futures. Disiplin mekanizmaları `hata-muzem.md`'ye taşındı |
-| 10 dakikada bir tarama | Videoda sık bildirim aceleye yol açtı (kalan 55 dolarla 27x pozisyon). 2 saat seçildi |
+| 10 dakikada bir tarama | Videoda sık bildirim aceleye yol açtı (kalan 55 dolarla 27x pozisyon). Bunun yerine hafta içi akşam penceresi seçildi |
 | Abacus AI | Aylık 10 dolar. GitHub Actions + Claude aboneliği ile aynı iş 0 dolara yapılıyor |
 
 ---

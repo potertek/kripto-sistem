@@ -71,6 +71,25 @@ def durum_yaz(durum: dict) -> None:
     )
 
 
+def calisma_penceresinde_mi(esikler: dict, an: datetime) -> tuple[bool, str]:
+    """(pencere_icinde_mi, aciklama) döner. Hafta içi/sonu ayrı pencere."""
+    pencereler = esikler["calisma_saatleri"]
+    hafta_sonu = an.weekday() >= 5           # 5=Cumartesi, 6=Pazar
+    anahtar = "hafta_sonu" if hafta_sonu else "hafta_ici"
+    p = pencereler[anahtar]
+    icinde = p["baslangic"] <= an.hour < p["bitis"]
+    etiket = "hafta sonu" if hafta_sonu else "hafta içi"
+    return icinde, f"{etiket} penceresi {p['baslangic']:02d}:00-{p['bitis']-1:02d}:59"
+
+
+def yon_uygun_mu(degisim: float, filtre: str) -> bool:
+    if filtre == "sadece_dusus":
+        return degisim < 0
+    if filtre == "sadece_yukselis":
+        return degisim > 0
+    return True
+
+
 def sessizlikte_mi(durum: dict, anahtar: str, saat: int) -> bool:
     """Bu uyarı yakın zamanda gönderildi mi? (spam önleme)"""
     kayit = durum.get(anahtar)
@@ -216,6 +235,7 @@ def tetikleri_bul(esikler: dict, durum: dict) -> list[dict]:
     tetikler: list[dict] = []
     birimler = esikler.get("para_birimleri") or ["usd"]
     ozel = esikler.get("coin_esikleri") or {}
+    filtre = esikler.get("yon_filtresi", "her_ikisi")
     fiyatlar = fiyatlari_cek(portfoy + radar, harita, birimler)
 
     for grup, coinler in (("portfoy", portfoy), ("radar", radar)):
@@ -225,6 +245,8 @@ def tetikleri_bul(esikler: dict, durum: dict) -> list[dict]:
             limit = float(ozel.get(sembol, varsayilan))
             veri = fiyatlar.get(sembol)
             if not veri or abs(veri["degisim"]) < limit:
+                continue
+            if not yon_uygun_mu(veri["degisim"], filtre):
                 continue
             anahtar = f"{grup}:{sembol}"
             if sessizlikte_mi(durum, anahtar, sessizlik):
@@ -312,13 +334,11 @@ def main() -> int:
     esikler = esikleri_oku()
     su_an = simdi()
 
-    if not test and not (
-        esikler["calisma_saatleri"]["baslangic"]
-        <= su_an.hour
-        < esikler["calisma_saatleri"]["bitis"]
-    ):
-        print(f"Çalışma saati dışı ({su_an:%H:%M} TSİ). Sessiz kalınıyor.")
-        return 0
+    if not test:
+        icinde, aciklama = calisma_penceresinde_mi(esikler, su_an)
+        if not icinde:
+            print(f"Çalışma saati dışı ({su_an:%H:%M} TSİ, {aciklama}). Sessiz kalınıyor.")
+            return 0
 
     durum = durum_oku()
 

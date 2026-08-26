@@ -26,10 +26,27 @@ piyasa:
   fear_greed_ust: 80        # bu değerin üstü → "aşırı açgözlülük"
   sessizlik_saat: 24
 
-# Nöbetin çalışacağı saat aralığı (TSİ)
+# Nöbetin çalışacağı saat aralığı (TSİ). bitis HARİÇ.
+# Hafta içi 18:00-21:00 saat başı, hafta sonu 09:00-21:00 iki saatte bir.
+# Bu pencerelerin dışında nöbet koşsa bile mesaj atmaz.
 calisma_saatleri:
-  baslangic: 9
-  bitis: 23
+  hafta_ici:
+    baslangic: 18
+    bitis: 22
+  hafta_sonu:
+    baslangic: 9
+    bitis: 22
+
+# Hangi yöndeki hareketler uyarı üretsin?
+#   her_ikisi   → hem yükseliş hem düşüş
+#   sadece_dusus → sadece düşüşler (yükselen coin bildirimi gelmez)
+#   sadece_yukselis → sadece yükselişler
+yon_filtresi: her_ikisi
+
+# Kademe 2 (yorum katmanı) hangi modelle çalışsın
+model:
+  ad: claude-sonnet-5
+  effort: medium
 
 # Fiyatlar hangi para biriminde gösterilsin?
 # Midas TL gösterdiği için ikisi birden açık.

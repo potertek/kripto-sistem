@@ -2,9 +2,12 @@ name: Nöbet
 
 on:
   schedule:
-    # Her 2 saatte bir, UTC. TSİ = UTC+3 → 09:00-23:00 TSİ aralığını kapsar.
-    # Saat filtresini nobet.py da ayrıca uygular (çift güvenlik).
-    - cron: "0 6,8,10,12,14,16,18,20 * * *"
+    # GitHub cron UTC çalışır. TSİ = UTC+3.
+    # Hafta içi (Pzt-Cum) 18:00-21:00 TSİ saat başı → UTC 15,16,17,18
+    - cron: "0 15,16,17,18 * * 1-5"
+    # Hafta sonu (Cmt-Paz) 09:00-21:00 TSİ 2 saatte bir → UTC 6,8,10,12,14,16,18
+    - cron: "0 6,8,10,12,14,16,18 * * 6,0"
+    # Saat penceresini nobet.py ayrıca uygular (çift güvenlik).
   workflow_dispatch:
     inputs:
       mod:
@@ -53,8 +56,12 @@ jobs:
         continue-on-error: true   # yorum gelmezse Kademe 1 uyarısı yine elinde
         run: |
           npm install -g @anthropic-ai/claude-code
+          # Model ve effort esikler.yml'den okunur.
+          MODEL=$(python -c "import yaml;print(yaml.safe_load(open('esikler.yml',encoding='utf-8'))['model']['ad'])")
+          EFFORT=$(python -c "import yaml;print(yaml.safe_load(open('esikler.yml',encoding='utf-8'))['model']['effort'])")
+          echo "Yorum katmani: $MODEL / effort=$EFFORT"
           # KONU'yu shell genişletsin diye heredoc TIRNAKSIZ.
-          claude -p "Şu coinlerde son 24 saatte eşik aşan bir hareket oldu: ${KONU}
+          claude -p --model "$MODEL" --effort "$EFFORT" "Şu coinlerde son 24 saatte eşik aşan bir hareket oldu: ${KONU}
 
           Web araması yaparak SADECE şunu yaz, en fazla 6 madde:
           - Bu hareketin bilinen sebebi ne? Sebep bulamıyorsan 'net bir sebep

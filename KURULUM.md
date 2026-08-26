@@ -117,7 +117,7 @@ Bir karar vermeden önce **5 numaralı Hata Kontrolü** promptunu çalıştır.
 |---|---|---|
 | Claude token süresi dolar | Rapor sessizce gelmez | `claude setup-token` → secret'ı güncelle |
 | GitHub cron gecikir | Rapor 08:00 yerine 08:20 | Normal. Ücretsiz zamanlayıcının doğası |
-| CoinGecko limiti | Nöbet 429 alır | Sıklığı azalt. 2 saatte bir ≈ 7 çağrı/gün, limit 10.000/ay |
+| CoinGecko limiti | Nöbet 429 alır | Hafta içi 4 + hafta sonu 7 koşu/gün ≈ 150 çağrı/ay. Limit 10.000/ay, bol bol yeter |
 | `esikler.yml` id eksik | Coin uyarı vermez | Loglarda "id'si olmayan coinler atlandı" satırını ara |
 | state commit çakışması | Nöbet push hatası | `concurrency` bunu engelliyor; tekrar eden hatada state/nobet.json'u sıfırla |
 
