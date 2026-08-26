@@ -45,6 +45,24 @@ ZAMAN_ASIMI = 20
 # Yardımcılar
 # --------------------------------------------------------------------------
 
+def env_yukle() -> None:
+    """.env dosyasını ortama yükler (varsa). GitHub Actions'ta secret'lar
+    zaten ortamda olduğu için orada bu bir şey yapmaz — mevcut değerleri
+    asla ezmez."""
+    dosya = KOK / ".env"
+    if not dosya.exists():
+        return
+    for satir in dosya.read_text(encoding="utf-8").splitlines():
+        satir = satir.strip()
+        if not satir or satir.startswith("#") or "=" not in satir:
+            continue
+        anahtar, _, deger = satir.partition("=")
+        anahtar = anahtar.strip()
+        deger = deger.strip().strip('"').strip("'")
+        if anahtar and anahtar not in os.environ:
+            os.environ[anahtar] = deger
+
+
 def simdi() -> datetime:
     return datetime.now(TSI)
 
@@ -328,6 +346,7 @@ def mesaj_kur(tetikler: list[dict]) -> str:
 # --------------------------------------------------------------------------
 
 def main() -> int:
+    env_yukle()
     test = "--test" in sys.argv
     kuru = "--kuru" in sys.argv
 
