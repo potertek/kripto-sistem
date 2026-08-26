@@ -1,0 +1,85 @@
+name: Nöbet
+
+on:
+  schedule:
+    # Her 2 saatte bir, UTC. TSİ = UTC+3 → 09:00-23:00 TSİ aralığını kapsar.
+    # Saat filtresini nobet.py da ayrıca uygular (çift güvenlik).
+    - cron: "0 6,8,10,12,14,16,18,20 * * *"
+  workflow_dispatch:
+    inputs:
+      mod:
+        description: "test = eşik aşılmasa da uyarı gönderir"
+        type: choice
+        options: ["normal", "test"]
+        default: "normal"
+
+concurrency:
+  group: nobet
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # state/nobet.json'u geri yazmak için
+
+jobs:
+  nobet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # ---- KADEME 1: saf Python. Model yok, maliyet yok. ----
+      - name: Eşik kontrolü
+        id: kademe1
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          python nobet.py ${{ github.event.inputs.mod == 'test' && '--test' || '' }}
+
+      # ---- KADEME 2: yalnızca eşik aşıldıysa. ----
+      - name: Yorum katmanı
+        if: steps.kademe1.outputs.tetiklendi == 'true'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          KONU: ${{ steps.kademe1.outputs.konu }}
+        continue-on-error: true   # yorum gelmezse Kademe 1 uyarısı yine elinde
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          # KONU'yu shell genişletsin diye heredoc TIRNAKSIZ.
+          claude -p "Şu coinlerde son 24 saatte eşik aşan bir hareket oldu: ${KONU}
+
+          Web araması yaparak SADECE şunu yaz, en fazla 6 madde:
+          - Bu hareketin bilinen sebebi ne? Sebep bulamıyorsan 'net bir sebep
+            bulunamadı' yaz, tahmin yürütme.
+          - Kaynak linki ver.
+
+          Kesinlikle yapma:
+          - Fiyat, yüzde veya herhangi bir sayı yazma. Sayılar zaten
+            gönderildi; senin işin yorum.
+          - Al/sat önerisi verme. 'Girilir', 'alınır', 'kaçırma' deme.
+          - baglam/hata-muzem.md dosyasını oku; kullanıcının uyarı
+            cümlelerinden birine benzeyen bir dil kurma.
+
+          Çıktıyı Telegram'a gönder:
+          curl -s -X POST \"https://api.telegram.org/bot\$TELEGRAM_BOT_TOKEN/sendMessage\" \\
+            -d chat_id=\"\$TELEGRAM_ADMIN_CHAT_ID\" -d parse_mode=HTML --data-urlencode text=\"...\"" \
+            --allowedTools "WebSearch,WebFetch,Bash,Read"
+
+      - name: Spam hafızasını kaydet
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain state/)" ]]; then
+            git config user.name  "nobet-bot"
+            git config user.email "actions@github.com"
+            git add state/
+            git commit -m "nöbet: spam hafızası güncellendi"
+            git push
+          fi

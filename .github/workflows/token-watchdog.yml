@@ -1,0 +1,56 @@
+name: Token Nöbetçisi
+
+# Bu sistemin en sinsi arıza modu: token'ın süresi dolar, hiçbir hata
+# görmezsin, rapor bir sabah sessizce gelmez. Bu workflow onu önler.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"   # her Pazartesi 08:00 TSİ
+  workflow_dispatch:
+
+permissions:
+  actions: read      # gh run list için gerekli
+  contents: read
+
+jobs:
+  kontrol:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram token'ı canlı mı?
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          yanit=$(curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe")
+          if ! echo "$yanit" | grep -q '"ok":true'; then
+            echo "Telegram token GEÇERSİZ."
+            exit 1
+          fi
+          echo "Telegram token geçerli."
+
+      - name: Son 7 günde rapor gitti mi?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          basarisiz=$(gh run list --workflow=daily-report.yml --limit 7 \
+            --json conclusion --jq '[.[] | select(.conclusion=="failure")] | length')
+          if [[ "$basarisiz" -ge 2 ]]; then
+            curl -s -X POST \
+              "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_ADMIN_CHAT_ID" \
+              --data-urlencode text="⚠️ Sabah raporu son 7 günde $basarisiz kez başarısız oldu. Muhtemel sebep: Claude token'ının süresi doldu. Yenile: claude setup-token → GitHub Secrets → CLAUDE_CODE_OAUTH_TOKEN"
+          fi
+
+      - name: Arıza bildir
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -d chat_id="$TELEGRAM_ADMIN_CHAT_ID" \
+            --data-urlencode text="🔴 Token nöbetçisi arıza buldu. GitHub → Actions → Token Nöbetçisi loglarına bak." || true

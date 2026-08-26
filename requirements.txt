@@ -1,0 +1,5 @@
+﻿requests
+Pillow
+edge-tts
+tzdata
+PyYAML>=6.0

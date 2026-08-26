@@ -1,0 +1,102 @@
+name: Günlük Kripto Raporu
+
+# Rapor HER GÜN tam 08:00 TSİ'de gider (SABİT saat, alışkanlık için).
+# GitHub cron tetikleme saati kayabildiğinden hedeften ÖNCE (07:35 TSİ) tetikleriz;
+# report.py tam 08:00'e kadar bekleyip öyle gönderir (DELIVER_AT_TR). Böylece teslim sabittir.
+on:
+  schedule:
+    # NÖBETÇİLER — GitHub cron'u saatlerce geciktirebiliyor, bu yüzden birden fazla
+    # uyandırma noktası var. Hangisi vaktinde uyanırsa tam 08:00'e kadar bekleyip
+    # gönderir; geç kalanlar "bugün gönderilmiş" görüp saniyeler içinde çıkar.
+    - cron: "7 1 * * *"        # 04:07 TSİ — erken nöbetçi (yalnız public repo)
+    - cron: "10 4 * * *"       # 07:10 TSİ
+    - cron: "25 4 * * *"       # 07:25 TSİ
+    - cron: "40 4 * * *"       # 07:40 TSİ
+    - cron: "55 4 * * *"       # 07:55 TSİ
+  workflow_dispatch:            # GitHub arayüzünden elle çalıştırma
+    inputs:
+      mode:
+        description: "Gönderim modu: normal (kanal) / test (admin) / both (ikisi) / onizleme (admin, etiketsiz)"
+        type: choice
+        options:
+          - normal
+          - test
+          - both
+          - onizleme
+        default: normal
+      deliver_at:
+        description: "İsteğe bağlı sabit teslim saati TSİ (HH:MM). Boşsa hemen gönderir."
+        type: string
+        default: ""
+
+# Aynı anda tek çalışma yeter; üst üste binmeyi engelle.
+concurrency:
+  group: daily-report
+  cancel-in-progress: false
+
+jobs:
+  rapor:
+    # Erken nöbetçi 08:00'e kadar ~4 saat bekler. Public repoda Actions süresi
+    # ücretsiz/sınırsız olduğu için bu bedava; private repoda kotayı yiyeceğinden
+    # atlanır (o repolarda 07:10-07:55 nöbetçileri devrede kalır).
+    if: ${{ !(github.event.schedule == '7 1 * * *' && github.event.repository.private) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 300  # erken nöbetçinin 08:00'e kadar beklemesini kapsar
+
+    steps:
+      - name: Repoyu çek
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python 3.11 kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Node.js kur (Claude Code CLI için)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python bağımlılıklarını kur
+        run: pip install -r requirements.txt
+
+      - name: Claude Code CLI kur
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Yazı tipi + ses araçları kur (kart & ses için)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-dejavu-core ffmpeg
+
+      - name: Raporu üret ve gönder
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          TELEGRAM_BOT_TOKEN:      ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:        ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_CHAT_ID:  ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          # Zamanlanmış çalışmada sabit teslim 08:00 TSİ; manuel çalışmada kullanıcı
+          # saat girdiyse o, girmediyse boş (hemen gönderir).
+          DELIVER_AT_TR: ${{ github.event_name == 'schedule' && '08:00' || inputs.deliver_at }}
+        run: |
+          case "${{ inputs.mode }}" in
+            test) python report.py --test ;;
+            both) python report.py --both ;;
+            onizleme) python report.py --onizleme ;;
+            *)    python report.py ;;
+          esac
+
+      - name: Takip durumunu kaydet
+        if: ${{ inputs.mode != 'test' && inputs.mode != 'onizleme' }}
+        run: |
+          if [ -n "$(git status --porcelain state/takip.json 2>/dev/null)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/takip.json
+            git commit -m "chore: gunluk takip durumu"
+            git pull --rebase --autostash origin main || true
+            git push || echo "push basarisiz (best-effort; rapor gonderildi)"
+          else
+            echo "takip degismedi"
+          fi

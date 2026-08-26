@@ -1,0 +1,52 @@
+# Nöbet eşikleri — bu dosyayı değiştirerek uyarı hassasiyetini ayarlarsın.
+# Değişiklik sonrası repoya push etmen yeterli, koda dokunmaya gerek yok.
+
+# Portföyünde olan coinler için varsayılan eşik (daha hassas — paran orada)
+portfoy:
+  degisim_yuzde: 7.0
+  sessizlik_saat: 12
+
+# Radarındaki (henüz almadığın) coinler için varsayılan eşik
+radar:
+  degisim_yuzde: 10.0
+  sessizlik_saat: 12
+
+# --- COIN BAZINDA EŞİK (varsayılanı ezer) ---
+# Büyük coinler küçüklerden daha az oynar. BTC'ye %10 eşik koyarsan
+# aylarca hiç bildirim almazsın. Buradaki değerler yüzde cinsinden.
+coin_esikleri:
+  BTC: 5.0
+  ETH: 6.0
+  SOL: 8.0
+  XRP: 8.0
+
+# Piyasa geneli göstergeleri
+piyasa:
+  fear_greed_alt: 20        # bu değerin altı → "aşırı korku"
+  fear_greed_ust: 80        # bu değerin üstü → "aşırı açgözlülük"
+  sessizlik_saat: 24
+
+# Nöbetin çalışacağı saat aralığı (TSİ)
+calisma_saatleri:
+  baslangic: 9
+  bitis: 23
+
+# Fiyatlar hangi para biriminde gösterilsin?
+# Midas TL gösterdiği için ikisi birden açık.
+para_birimleri: [usd, try]
+
+# CoinGecko id'leri. portfoyum.csv ve radarim.md ile eşleşmeli.
+# Tam liste: https://api.coingecko.com/api/v3/coins/list
+coingecko_id_haritasi:
+  BTC: bitcoin
+  ETH: ethereum
+  SOL: solana
+  XRP: ripple
+  AVAX: avalanche-2
+  LINK: chainlink
+  ADA: cardano
+  DOGE: dogecoin
+  DOT: polkadot
+  ATOM: cosmos
+  ARB: arbitrum
+  OP: optimism
